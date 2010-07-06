@@ -1,24 +1,33 @@
 require 'date'
 
+#class UserEnteredSourceInfo
+#  def source_info
+#    puts("Source Info (when done type \"END\"): ")
+#    STDIN.gets("")
+#  end
+#end
+
 class UserEnteredSongNameFetcher
   
   def song_name(file)
     puts("Song name for #{file}: ")
     songname = gets
   end
-  
+    
 end
 
 class CurrentDirectoryFlacFileList
+  
   def flac_files
     Dir.glob("*.flac")
   end
+  
 end
 
 class DiscAndTrackInfo
   
   def initialize(date, files)
-    @date = Date.parse(date)
+    @date = date
     @month = @date.month
     @day = @date.day
     @files = files
@@ -56,6 +65,67 @@ class DiscAndTrackInfo
       
 end
 
+class MetaFlacArgumentBuilder
+  SET_TAG_PREFIX = "--set-tag="
+  
+  def initialize
+    @args = ""
+  end
+  
+  def arguments
+    @args
+  end
+  
+  def add_description(desc)
+    add_argument("DESCRIPTION", desc)
+  end
+  
+  def add_title(title)
+    add_argument("TITLE", title)
+    self
+  end
+  
+  def add_artist(artist)
+    add_argument("ARTIST", artist)
+    self
+  end  
+  
+  def add_album(album)
+    add_argument("ALBUM", album)
+  end
+  
+  def add_date(date)
+    add_argument("DATE", date)
+  end
+  
+  def add_genre(genre)
+    add_argument("GENRE", genre)
+  end
+  
+  def add_disc_total(total)
+    add_argument("DISCTOTAL", total)
+  end
+  
+  def add_track_number(number)
+    add_argument("TRACKNUMBER", number)
+  end
+  
+  def add_disc_number(number)
+    add_argument("DISCNUMBER", number)
+  end
+  
+  def add_track_total(total)
+    add_argument("TRACKTOTAL", total)
+  end
+  
+  private
+  
+  def add_argument(tag_name, value)
+    @args += " #{SET_TAG_PREFIX}#{tag_name}=\"#{value}\""
+  end
+  
+end
+
 class FlacTagger
 
   BIN_DIR = "/Applications/xACT.app/Contents/Resources/Binaries/bin"
@@ -63,37 +133,42 @@ class FlacTagger
   
   def initialize(artist, date, location, venue)
     @date = Date.parse(date)
+    #@source_info = UserEnteredSourceInfo.new
     @files = CurrentDirectoryFlacFileList.new.flac_files
-    @disc_and_track_info = DiscAndTrackInfo.new(date, @files)
+    @disc_and_track_info = DiscAndTrackInfo.new(@date, @files)
     @artist = artist
-    @year = @date.year
-    @month = @date.month
-    @day = @date.day
     @location = location
     @venue = venue
     @song_name_fetcher = UserEnteredSongNameFetcher.new
   end
   
   def write_tags
+    #source = @source_info.source_info
+    
     @files.each do |file|
-      disc_total = @disc_and_track_info.disc_total
-      track_number = @disc_and_track_info.track_number(file)
-      disc_number = @disc_and_track_info.disc_number(file)
-      track_total = @disc_and_track_info.track_total(file)
+      builder = MetaFlacArgumentBuilder.new  
+      #builder.add_description(source)    
+      builder.add_title(@song_name_fetcher.song_name(file))
+      builder.add_artist(@artist)
+      builder.add_album(build_album_string)
+      builder.add_date(@year)
+      builder.add_genre("Rock")
+      builder.add_disc_total(@disc_and_track_info.disc_total)
+      builder.add_track_number(@disc_and_track_info.track_number(file))
+      builder.add_disc_number(@disc_and_track_info.disc_number(file))
+      builder.add_track_total(@disc_and_track_info.track_total(file))
       
-      songname = @song_name_fetcher.song_name(file)
-      
-      system("#{METAFLAC} --set-tag=TITLE='#{songname}' --set-tag=ARTIST='#{@artist}' --set-tag=ALBUM='#{build_album_string}' --set-tag=DATE='#{@year}' --set-tag=Genre=Rock --set-tag=DISCTOTAL=#{disc_total} --set-tag=TRACKNUMBER='#{track_number}' --set-tag=DISCNUMBER='#{disc_number}' --set-tag=TRACKTOTAL='#{track_total}' #{file}")
+      system("#{METAFLAC} #{builder.arguments} #{file}")
     end    
   end
   
   def build_album_string
-    "#{@year}/#{@month}/#{@day} #{@location} - #{@venue}"
+    "#{@date.strftime('%Y/%m/%d')} #{@location} - #{@venue}"
   end
   
 end
 
-puts "Enter Date: "
+puts "Enter Date (yyyy/mm/dd): "
 date = gets
 
 puts "Enter City, State: "
