@@ -34,7 +34,7 @@ class FlacTagger
       disc_number = @file_to_disc[file]
       track_total = @discs_and_tracks[disc_number]
       
-      songname = @song_name_fetcher(file)
+      songname = @song_name_fetcher.songname(file)
       
       system("#{METAFLAC} --set-tag=TITLE='#{songname}' --set-tag=ARTIST='#{@artist}' --set-tag=ALBUM='#{build_album_string}' --set-tag=DATE='#{@year}' --set-tag=Genre=Rock --set-tag=DISCTOTAL=#{disc_total} --set-tag=TRACKNUMBER='#{track_number}' --set-tag=DISCNUMBER='#{disc_number}' --set-tag=TRACKTOTAL='#{track_total}' #{file}")
     end    
