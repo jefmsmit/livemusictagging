@@ -1,5 +1,14 @@
 require 'date'
 
+class UserEnteredSongNameFetcher
+  
+  def song_name(file)
+    puts("Song name for #{file}: ")
+    songname = gets
+  end
+  
+end
+
 class FlacTagger
 
   BIN_DIR = "/Applications/xACT.app/Contents/Resources/Binaries/bin"
@@ -14,6 +23,7 @@ class FlacTagger
     @day = @date.day
     @location = location
     @venue = venue
+    @song_name_fetcher = UserEnteredSongNameFetcher.new
     initalize_discs_and_tracks    
   end
   
@@ -24,8 +34,7 @@ class FlacTagger
       disc_number = @file_to_disc[file]
       track_total = @discs_and_tracks[disc_number]
       
-      puts("Song name for #{file}: ")
-      songname = gets
+      songname = @song_name_fetcher(file)
       
       system("#{METAFLAC} --set-tag=TITLE='#{songname}' --set-tag=ARTIST='#{@artist}' --set-tag=ALBUM='#{build_album_string}' --set-tag=DATE='#{@year}' --set-tag=Genre=Rock --set-tag=DISCTOTAL=#{disc_total} --set-tag=TRACKNUMBER='#{track_number}' --set-tag=DISCNUMBER='#{disc_number}' --set-tag=TRACKTOTAL='#{track_total}' #{file}")
     end    
