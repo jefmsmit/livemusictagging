@@ -9,38 +9,20 @@ class UserEnteredSongNameFetcher
   
 end
 
-class FlacTagger
+class CurrentDirectoryFlacFileList
+  def flac_files
+    Dir.glob("*.flac")
+  end
+end
 
-  BIN_DIR = "/Applications/xACT.app/Contents/Resources/Binaries/bin"
-  METAFLAC = "#{BIN_DIR}/metaflac"
+class DiscAndTrackInfo
   
-  def initialize(artist, date, location, venue)
+  def initialize(date, files)
     @date = Date.parse(date)
-    @files = Dir.glob("*.flac")
-    @artist = artist
-    @year = @date.year
     @month = @date.month
     @day = @date.day
-    @location = location
-    @venue = venue
-    @song_name_fetcher = UserEnteredSongNameFetcher.new
-    initalize_discs_and_tracks    
-  end
-  
-  def write_tags
-    @files.each do |file|
-      disc_total = @discs_and_tracks.size
-      track_number = @file_to_track[file]
-      disc_number = @file_to_disc[file]
-      track_total = @discs_and_tracks[disc_number]
-      
-      songname = @song_name_fetcher.songname(file)
-      
-      system("#{METAFLAC} --set-tag=TITLE='#{songname}' --set-tag=ARTIST='#{@artist}' --set-tag=ALBUM='#{build_album_string}' --set-tag=DATE='#{@year}' --set-tag=Genre=Rock --set-tag=DISCTOTAL=#{disc_total} --set-tag=TRACKNUMBER='#{track_number}' --set-tag=DISCNUMBER='#{disc_number}' --set-tag=TRACKTOTAL='#{track_total}' #{file}")
-    end    
-  end
-  
-  def initalize_discs_and_tracks
+    @files = files
+    
     @discs_and_tracks = {}
     @file_to_disc = {}
     @file_to_track = {}     
@@ -52,7 +34,57 @@ class FlacTagger
       @file_to_disc[file] = current_disc
       @file_to_track[file] = current_track
       @discs_and_tracks[current_disc] = current_track
-    end        
+    end
+    
+  end
+  
+  def disc_total
+    @discs_and_tracks.size
+  end
+  
+  def track_number(file)
+    @file_to_track[file]
+  end  
+  
+  def disc_number(file)
+    @file_to_disc[file]
+  end
+  
+  def track_total(file)
+    @discs_and_tracks[disc_number(file)]
+  end
+      
+end
+
+class FlacTagger
+
+  BIN_DIR = "/Applications/xACT.app/Contents/Resources/Binaries/bin"
+  METAFLAC = "#{BIN_DIR}/metaflac"
+  
+  def initialize(artist, date, location, venue)
+    @date = Date.parse(date)
+    @files = CurrentDirectoryFlacFileList.new.flac_files
+    @disc_and_track_info = DiscAndTrackInfo.new(date, @files)
+    @artist = artist
+    @year = @date.year
+    @month = @date.month
+    @day = @date.day
+    @location = location
+    @venue = venue
+    @song_name_fetcher = UserEnteredSongNameFetcher.new
+  end
+  
+  def write_tags
+    @files.each do |file|
+      disc_total = @disc_and_track_info.disc_total
+      track_number = @disc_and_track_info.track_number(file)
+      disc_number = @disc_and_track_info.disc_number(file)
+      track_total = @disc_and_track_info.track_total(file)
+      
+      songname = @song_name_fetcher.song_name(file)
+      
+      system("#{METAFLAC} --set-tag=TITLE='#{songname}' --set-tag=ARTIST='#{@artist}' --set-tag=ALBUM='#{build_album_string}' --set-tag=DATE='#{@year}' --set-tag=Genre=Rock --set-tag=DISCTOTAL=#{disc_total} --set-tag=TRACKNUMBER='#{track_number}' --set-tag=DISCNUMBER='#{disc_number}' --set-tag=TRACKTOTAL='#{track_total}' #{file}")
+    end    
   end
   
   def build_album_string
