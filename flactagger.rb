@@ -1,11 +1,23 @@
+#!/usr/bin/env ruby
+
 require 'date'
 
-#class UserEnteredSourceInfo
-#  def source_info
-#    puts("Source Info (when done type \"END\"): ")
-#    STDIN.gets("")
-#  end
-#end
+class UserEnteredSourceInfo
+  def source_info
+    puts("Source Info (when done type \"END\"): ")
+    
+    source = ""
+    line = ""
+    
+    begin
+      line = gets.chomp
+      source += line
+    end while not (line == "END")   
+    
+    source   
+    
+  end
+end
 
 class UserEnteredSongNameFetcher
   
@@ -78,6 +90,7 @@ class MetaFlacArgumentBuilder
   
   def add_description(desc)
     add_argument("DESCRIPTION", desc)
+    self
   end
   
   def add_title(title)
@@ -92,30 +105,37 @@ class MetaFlacArgumentBuilder
   
   def add_album(album)
     add_argument("ALBUM", album)
+    self
   end
   
   def add_date(date)
     add_argument("DATE", date)
+    self
   end
   
   def add_genre(genre)
     add_argument("GENRE", genre)
+    self
   end
   
   def add_disc_total(total)
     add_argument("DISCTOTAL", total)
+    self
   end
   
   def add_track_number(number)
     add_argument("TRACKNUMBER", number)
+    self
   end
   
   def add_disc_number(number)
     add_argument("DISCNUMBER", number)
+    self
   end
   
   def add_track_total(total)
     add_argument("TRACKTOTAL", total)
+    self
   end
   
   private
@@ -131,45 +151,41 @@ class FlacTagger
   BIN_DIR = "/Applications/xACT.app/Contents/Resources/Binaries/bin"
   METAFLAC = "#{BIN_DIR}/metaflac"
   
-  def initialize(artist, date, location, venue)
-    @date = Date.parse(date)
-    #@source_info = UserEnteredSourceInfo.new
-    @files = CurrentDirectoryFlacFileList.new.flac_files
-    @disc_and_track_info = DiscAndTrackInfo.new(@date, @files)
-    @artist = artist
-    @location = location
-    @venue = venue
-    @song_name_fetcher = UserEnteredSongNameFetcher.new
+  def initialize(source_info, flac_file_list, disc_and_track_info, song_name_fetcher)
+    @source_info = source_info
+    @files = flac_file_list.flac_files
+    @disc_and_track_info = disc_and_track_info
+    @song_name_fetcher = song_name_fetcher
   end
   
-  def write_tags
-    #source = @source_info.source_info
+  def write_tags(artist, date, location, venue)
+    source = @source_info.source_info
     
     @files.each do |file|
       builder = MetaFlacArgumentBuilder.new  
-      #builder.add_description(source)    
-      builder.add_title(@song_name_fetcher.song_name(file))
-      builder.add_artist(@artist)
-      builder.add_album(build_album_string)
-      builder.add_date(@year)
-      builder.add_genre("Rock")
-      builder.add_disc_total(@disc_and_track_info.disc_total)
-      builder.add_track_number(@disc_and_track_info.track_number(file))
-      builder.add_disc_number(@disc_and_track_info.disc_number(file))
-      builder.add_track_total(@disc_and_track_info.track_total(file))
+      builder.add_description(source).    
+        add_title(@song_name_fetcher.song_name(file)).
+        add_artist(artist).
+        add_album(build_album_string(date, location, venue)).
+        add_date(date.strftime('%Y')).
+        add_genre("Rock").
+        add_disc_total(@disc_and_track_info.disc_total).
+        add_track_number(@disc_and_track_info.track_number(file)).
+        add_disc_number(@disc_and_track_info.disc_number(file)).
+        add_track_total(@disc_and_track_info.track_total(file))
       
       system("#{METAFLAC} #{builder.arguments} #{file}")
     end    
   end
   
-  def build_album_string
-    "#{@date.strftime('%Y/%m/%d')} #{@location} - #{@venue}"
+  def build_album_string(date, location, venue)
+    "#{date.strftime('%Y/%m/%d')} #{location} - #{venue}"
   end
   
 end
 
 puts "Enter Date (yyyy/mm/dd): "
-date = gets
+date = Date.parse(gets.chomp)
 
 puts "Enter City, State: "
 location = gets
@@ -177,5 +193,11 @@ location = gets
 puts "Enter Venue: "
 venue = gets
 
-tagger = FlacTagger.new("Grateful Dead", date, location, venue)
-tagger.write_tags
+
+source_info = UserEnteredSourceInfo.new
+flac_file_list = CurrentDirectoryFlacFileList.new
+disc_and_track_info = DiscAndTrackInfo.new(date, flac_file_list.flac_files)
+song_name_fetcher = UserEnteredSongNameFetcher.new
+
+tagger = FlacTagger.new(source_info, flac_file_list, disc_and_track_info, song_name_fetcher)
+tagger.write_tags("Grateful Dead", date, location, venue)
