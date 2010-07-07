@@ -1,5 +1,12 @@
 #!/usr/bin/env ruby
 
+# ToDo:
+# Validate md5s for flacs
+# support automatic source information
+# support automatic song information
+# check for shn first, validate md5s, convert to wavs, validate md5s again, convert to flacs
+
+
 require 'date'
 
 class UserEnteredSourceInfo
