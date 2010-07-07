@@ -151,9 +151,9 @@ class FlacTagger
   BIN_DIR = "/Applications/xACT.app/Contents/Resources/Binaries/bin"
   METAFLAC = "#{BIN_DIR}/metaflac"
   
-  def initialize(source_info, flac_file_list, disc_and_track_info, song_name_fetcher)
-    @source_info = source_info
-    @files = flac_file_list.flac_files
+  def initialize(files, source_info, disc_and_track_info, song_name_fetcher)
+    @files = files
+    @source_info = source_info    
     @disc_and_track_info = disc_and_track_info
     @song_name_fetcher = song_name_fetcher
   end
@@ -188,16 +188,17 @@ puts "Enter Date (yyyy/mm/dd): "
 date = Date.parse(gets.chomp)
 
 puts "Enter City, State: "
-location = gets
+location = gets.chomp
 
 puts "Enter Venue: "
-venue = gets
+venue = gets.chomp
 
 
 source_info = UserEnteredSourceInfo.new
 flac_file_list = CurrentDirectoryFlacFileList.new
-disc_and_track_info = DiscAndTrackInfo.new(date, flac_file_list.flac_files)
+files = flac_file_list.flac_files
+disc_and_track_info = DiscAndTrackInfo.new(date, files)
 song_name_fetcher = UserEnteredSongNameFetcher.new
 
-tagger = FlacTagger.new(source_info, flac_file_list, disc_and_track_info, song_name_fetcher)
+tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher)
 tagger.write_tags("Grateful Dead", date, location, venue)
