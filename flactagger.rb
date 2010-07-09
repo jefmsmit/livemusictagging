@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 # ToDo:
-# Validate md5s for flacs
 # support automatic source information
 # support automatic song information
 # check for shn first, validate md5s, convert to wavs, validate md5s again, convert to flacs
@@ -13,13 +12,12 @@ class UserEnteredSourceInfo
   def source_info
     puts("Source Info (when done type \"END\"): ")
     
-    source = ""
-    line = ""
-    
-    begin
-      line = gets.chomp
-      source += line
-    end while not (line == "END")   
+    line = gets
+    source = line
+    while not (line.chomp == "END")
+      line = gets
+      source += line unless line.chomp == "END" # there must be a better way
+    end
     
     source   
     
@@ -37,8 +35,39 @@ end
 
 class CurrentDirectoryFlacFileList
   
-  def flac_files
-    Dir.glob("*.flac")
+  attr_reader :flac_files
+
+  def initialize
+    @flac_files = Dir.glob("*.flac")
+  end
+  
+  def valid?
+    md5s = Dir.glob("*.md5")
+    md5s.each do |file|
+      status = system("md5sum -c #{file}") 
+      return status unless status
+    end
+    return true
+  end
+  
+end
+
+class CurrentDirectoryShnToWaveToFlacFileList
+  def valid?
+    false
+  end
+end
+
+class FlacFileListFactory
+  
+  def flac_file_list
+    if not Dir.glob("*.flac").empty?
+      return CurrentDirectoryFlacFileList.new
+    elsif not Dir.glob("*.shn").empty?
+      puts "we've got shns"
+      return CurrentDirectoryShnToWaveToFlacFileList.new
+    else
+    end    
   end
   
 end
@@ -202,10 +231,16 @@ venue = gets.chomp
 
 
 source_info = UserEnteredSourceInfo.new
-flac_file_list = CurrentDirectoryFlacFileList.new
-files = flac_file_list.flac_files
-disc_and_track_info = DiscAndTrackInfo.new(date, files)
-song_name_fetcher = UserEnteredSongNameFetcher.new
+flac_file_list = FlacFileListFactory.new.flac_file_list
 
-tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher)
-tagger.write_tags("Grateful Dead", date, location, venue)
+if(flac_file_list.valid?)
+  files = flac_file_list.flac_files 
+  disc_and_track_info = DiscAndTrackInfo.new(date, files)
+  song_name_fetcher = UserEnteredSongNameFetcher.new
+
+  tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher)
+  #tagger.write_tags("Grateful Dead", date, location, venue)
+else
+  puts "There was a problem with the flacs, perhaps a bad md5?"
+end
+
