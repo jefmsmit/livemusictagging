@@ -100,6 +100,19 @@ class WavToFlacConverter
   
 end
 
+class RemoveWavConverter
+  
+  def initialize(executor)
+    @executor = executor
+  end
+  
+  def convert
+    puts("should be deleting the wavs here, but I don't know how")
+    return true
+  end
+  
+end
+
 class ChainedConverter
   
   def initialize(converters)
@@ -143,7 +156,7 @@ class CurrentDirectoryShnToWaveToFlacFileList
   def valid?    
     if(@md5checker.valid?)
       return ChainedConverter.new(
-        [ShnToWavConverter.new(@executor), WavToFlacConverter.new(@executor)]
+        [ShnToWavConverter.new(@executor), WavToFlacConverter.new(@executor), RemoveWavConverter.new(@executor)]
       ).convert
     end    
     false
