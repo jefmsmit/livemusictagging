@@ -43,7 +43,8 @@ end
 
 class MD5Checker
   
-  def initialize(pattern)
+  def initialize(executor, pattern)
+    @executor = executor
     @pattern = pattern
   end
   
@@ -51,7 +52,7 @@ class MD5Checker
     md5s = Dir.glob(@pattern)
     md5s.each do |file|
       puts("checking #{file}")
-      #status = SystemExecutor.new.execute("md5sum -c #{file}") 
+      #status = @executor.execute("md5sum -c #{file}") 
       #return status unless status
     end
     return true
@@ -61,12 +62,16 @@ end
 
 class ShnToWavConverter
   
+  def initialize(executor)
+    @executor = executor
+  end
+  
   def convert
     shns = Dir.glob("*.shn")
     
     shns.each do |file|
       puts ("converting shn file #{file} to wav")
-      status = SystemExecutor.new.execute("shorten -x #{file}") #how do I keep the original shn files?
+      status = @executor.execute("shorten -x #{file}") #how do I keep the original shn files?
       return status unless status
     end
     return true
@@ -76,13 +81,17 @@ end
 
 class WavToFlacConverter
   
+  def initialize(executor)
+    @executor = executor
+  end
+  
   def convert
     #should validate any wav file md5 sums here
     flacs = Dir.glob("*.wav")
     
     flacs.each do |file|
       puts("converting wav file #{file} to flac")
-      status = SystemExecutor.new.execute("flac -8 #{file}")
+      status = @executor.execute("flac -8 #{file}")
       return status unless status
     end   
     #need to delete the wav files 
@@ -125,14 +134,17 @@ end
 
 class CurrentDirectoryShnToWaveToFlacFileList
   
-  def initialize(md5checker)
+  def initialize(md5checker, executor)
     puts "We must have shn files..."
     @md5checker = md5checker
+    @executor = executor
   end
   
   def valid?    
     if(@md5checker.valid?)
-      return ChainedConverter.new([ShnToWavConverter.new, WavToFlacConverter.new]).convert
+      return ChainedConverter.new(
+        [ShnToWavConverter.new(@executor), WavToFlacConverter.new(@executor)]
+      ).convert
     end    
     false
   end
@@ -147,11 +159,15 @@ end
 
 class FlacFileListFactory
   
+  def initialize(executor)
+    @executor = executor
+  end
+  
   def flac_file_list
     if not Dir.glob("*.flac").empty?
-      return CurrentDirectoryFlacFileList.new(MD5Checker.new("*.md5"))
+      return CurrentDirectoryFlacFileList.new(MD5Checker.new(@executor, "*.md5"))
     elsif not Dir.glob("*.shn").empty?
-      return CurrentDirectoryShnToWaveToFlacFileList.new(MD5Checker.new("*.md5"))
+      return CurrentDirectoryShnToWaveToFlacFileList.new(MD5Checker.new(@executor, "*.md5"), @executor)
     else
       []
     end    
@@ -195,7 +211,7 @@ class DiscAndTrackInfo
       
 end
 
-class MetaFlacArgumentBuilder
+class FlacTagBuilder
   SET_TAG_PREFIX = "--set-tag="
   
   def initialize
@@ -264,20 +280,33 @@ class MetaFlacArgumentBuilder
   
 end
 
+class TagWriter
+  
+  def initialize(executor)
+    @executor = executor
+  end
+  
+  def write_tags(file, builder)
+    @executor.execute("metaflac #{builder.arguments} #{file}")
+  end
+  
+end
+
 class FlacTagger
 
-  def initialize(files, source_info, disc_and_track_info, song_name_fetcher)
+  def initialize(files, source_info, disc_and_track_info, song_name_fetcher, tag_writer)
     @files = files
     @source_info = source_info    
     @disc_and_track_info = disc_and_track_info
     @song_name_fetcher = song_name_fetcher
+    @tag_writer = tag_writer
   end
   
   def write_tags(artist, date, location, venue)
     source = @source_info.source_info
     
     @files.each do |file|
-      builder = MetaFlacArgumentBuilder.new  
+      builder = FlacTagBuilder.new  
       builder.add_description(source).    
         add_title(@song_name_fetcher.song_name(file)).
         add_artist(artist).
@@ -289,7 +318,7 @@ class FlacTagger
         add_disc_number(@disc_and_track_info.disc_number(file)).
         add_track_total(@disc_and_track_info.track_total(file))
       
-      SystemExecutor.new.execute("metaflac #{builder.arguments} #{file}")
+      @tag_writer.write_tags(file, builder)
     end    
   end
   
@@ -308,17 +337,18 @@ location = gets.chomp
 puts "Enter Venue: "
 venue = gets.chomp
 
-
+system_executor = SystemExecutor.new
 source_info = UserEnteredSourceInfo.new
-flac_file_list = FlacFileListFactory.new.flac_file_list
+flac_file_list = FlacFileListFactory.new(system_executor).flac_file_list
 
 if(flac_file_list.valid?)
   puts "Flac files are valid, proceeding..."
   files = flac_file_list.flac_files 
   disc_and_track_info = DiscAndTrackInfo.new(date, files)
   song_name_fetcher = UserEnteredSongNameFetcher.new
+  tag_writer = TagWriter.new(system_executor)
 
-  tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher)
+  tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher, tag_writer)
   tagger.write_tags("Grateful Dead", date, location, venue)
 else
   puts "There was a problem with the flacs, perhaps a bad md5?"
