@@ -3,10 +3,18 @@
 # ToDo:
 # support automatic source information
 # support automatic song information
+# support user entered input as command line arguments
 # check for shn first, validate md5s, convert to wavs, validate md5s again, convert to flacs
+# support custom file patterns
 
 
 require 'date'
+
+class SystemExecutor
+  def execute(call)
+    return system(call)
+  end
+end
 
 class UserEnteredSourceInfo
   def source_info
@@ -33,18 +41,32 @@ class UserEnteredSongNameFetcher
     
 end
 
-class CurrentDirectoryFlacFileList
+class MD5Checker
   
-  attr_reader :flac_files
-
-  def initialize
-    @flac_files = Dir.glob("*.flac")
+  def initialize(pattern)
+    @pattern = pattern
   end
   
   def valid?
-    md5s = Dir.glob("*.md5")
+    md5s = Dir.glob(@pattern)
     md5s.each do |file|
-      status = system("md5sum -c #{file}") 
+      puts("checking #{file}")
+      #status = SystemExecutor.new.execute("md5sum -c #{file}") 
+      #return status unless status
+    end
+    return true
+  end
+  
+end
+
+class ShnToWavConverter
+  
+  def convert
+    shns = Dir.glob("*.shn")
+    
+    shns.each do |file|
+      puts ("converting shn file #{file} to wav")
+      status = SystemExecutor.new.execute("shorten -x #{file}") #how do I keep the original shn files?
       return status unless status
     end
     return true
@@ -52,21 +74,86 @@ class CurrentDirectoryFlacFileList
   
 end
 
-class CurrentDirectoryShnToWaveToFlacFileList
+class WavToFlacConverter
+  
+  def convert
+    #should validate any wav file md5 sums here
+    flacs = Dir.glob("*.wav")
+    
+    flacs.each do |file|
+      puts("converting wav file #{file} to flac")
+      status = SystemExecutor.new.execute("flac -8 #{file}")
+      return status unless status
+    end   
+    #need to delete the wav files 
+    return true
+  end
+  
+end
+
+class ChainedConverter
+  
+  def initialize(converters)
+    @converters = converters
+  end
+  
+  def convert
+    @converters.each do |converter|
+      status = converter.convert
+      return status unless status
+    end
+    return true
+  end
+  
+end
+
+class CurrentDirectoryFlacFileList
+  
+  attr_reader :flac_files
+
+  def initialize(md5checker)
+    puts("We must have flac files...")
+    @md5checker = md5checker
+    @flac_files = Dir.glob("*.flac")
+  end
+  
   def valid?
+    return @md5checker.valid?
+  end
+  
+end
+
+class CurrentDirectoryShnToWaveToFlacFileList
+  
+  def initialize(md5checker)
+    puts "We must have shn files..."
+    @md5checker = md5checker
+  end
+  
+  def valid?    
+    if(@md5checker.valid?)
+      return ChainedConverter.new([ShnToWavConverter.new, WavToFlacConverter.new]).convert
+    end    
     false
   end
+  
+  def flac_files
+    flac_files = CurrentDirectoryFlacFileList.new(nil).flac_files
+    puts(flac_files)
+    flac_files
+  end
+  
 end
 
 class FlacFileListFactory
   
   def flac_file_list
     if not Dir.glob("*.flac").empty?
-      return CurrentDirectoryFlacFileList.new
+      return CurrentDirectoryFlacFileList.new(MD5Checker.new("*.md5"))
     elsif not Dir.glob("*.shn").empty?
-      puts "we've got shns"
-      return CurrentDirectoryShnToWaveToFlacFileList.new
+      return CurrentDirectoryShnToWaveToFlacFileList.new(MD5Checker.new("*.md5"))
     else
+      []
     end    
   end
   
@@ -75,24 +162,19 @@ end
 class DiscAndTrackInfo
   
   def initialize(date, files)
-    @date = date
-    @month = @date.month
-    @day = @date.day
-    @files = files
-    
     @discs_and_tracks = {}
     @file_to_disc = {}
     @file_to_track = {}     
     
-    @files.each do |file|
-      file[Regexp.new("gd#{@date.strftime('%g')}-#{@month}-#{@day}d(\\d)t(\\d+).flac")]
+    files.each do |file|
+      regex = "gd#{date.strftime('%g')}-#{date.strftime('%m')}-#{date.strftime('%d')}d(\\d)t(\\d+).flac"
+      file[Regexp.new(regex)]
       current_disc = $1
       current_track = $2.to_i
       @file_to_disc[file] = current_disc
       @file_to_track[file] = current_track
       @discs_and_tracks[current_disc] = current_track
     end
-    
   end
   
   def disc_total
@@ -184,9 +266,6 @@ end
 
 class FlacTagger
 
-  BIN_DIR = "/Applications/xACT.app/Contents/Resources/Binaries/bin"
-  METAFLAC = "#{BIN_DIR}/metaflac"
-  
   def initialize(files, source_info, disc_and_track_info, song_name_fetcher)
     @files = files
     @source_info = source_info    
@@ -210,7 +289,7 @@ class FlacTagger
         add_disc_number(@disc_and_track_info.disc_number(file)).
         add_track_total(@disc_and_track_info.track_total(file))
       
-      system("#{METAFLAC} #{builder.arguments} #{file}")
+      SystemExecutor.new.execute("metaflac #{builder.arguments} #{file}")
     end    
   end
   
@@ -234,12 +313,13 @@ source_info = UserEnteredSourceInfo.new
 flac_file_list = FlacFileListFactory.new.flac_file_list
 
 if(flac_file_list.valid?)
+  puts "Flac files are valid, proceeding..."
   files = flac_file_list.flac_files 
   disc_and_track_info = DiscAndTrackInfo.new(date, files)
   song_name_fetcher = UserEnteredSongNameFetcher.new
 
   tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher)
-  #tagger.write_tags("Grateful Dead", date, location, venue)
+  tagger.write_tags("Grateful Dead", date, location, venue)
 else
   puts "There was a problem with the flacs, perhaps a bad md5?"
 end
