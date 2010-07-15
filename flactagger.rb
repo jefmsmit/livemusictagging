@@ -105,14 +105,14 @@ class MD5Checker
   
 end
 
-class ShnToWavConverter
+class ShnToWavCommand
   
   def initialize(executor, wav_md5_checker)
     @executor = executor
     @wav_md5_checker = wav_md5_checker
   end
   
-  def convert
+  def execute?
     shns = Dir.glob("*.shn")
     
     shns.each do |file|
@@ -126,14 +126,13 @@ class ShnToWavConverter
   
 end
 
-class WavToFlacConverter
+class WavToFlacCommand
   
   def initialize(executor)
     @executor = executor
   end
   
-  def convert
-    #should validate any wav file md5 sums here
+  def execute?
     wavs = Dir.glob("*.wav")
     
     wavs.each do |file|
@@ -147,13 +146,13 @@ class WavToFlacConverter
   
 end
 
-class RemoveWavConverter
+class RemoveWavCommand
   
   def initialize(executor)
     @executor = executor
   end
   
-  def convert
+  def execute?
     wavs = Dir.glob("*.wav")
     
     wavs.each do |file|
@@ -165,15 +164,15 @@ class RemoveWavConverter
   
 end
 
-class ChainedConverter
+class CompoundCommand
   
-  def initialize(converters)
-    @converters = converters
+  def initialize(commands)
+    @commands = commands
   end
   
-  def convert
-    @converters.each do |converter|
-      status = converter.convert
+  def execute?
+    @commands.each do |command|
+      status = command.execute?
       return status unless status
     end
     return true
@@ -207,17 +206,15 @@ class CurrentDirectoryShnToWaveToFlacFileList
   
   def valid?    
     if(@md5checker.valid?)
-      return ChainedConverter.new(
-        [ShnToWavConverter.new(@executor, MD5Checker.new("*wav*.md5", nil)), WavToFlacConverter.new(@executor), RemoveWavConverter.new(@executor)]
-      ).convert
+      return CompoundCommand.new(
+        [ShnToWavCommand.new(@executor, MD5Checker.new("*wav*.md5", nil)), WavToFlacCommand.new(@executor), RemoveWavCommand.new(@executor)]
+      ).execute?
     end    
     false
   end
   
   def flac_files
-    flac_files = CurrentDirectoryFlacFileList.new(nil).flac_files
-    puts(flac_files)
-    flac_files
+    CurrentDirectoryFlacFileList.new(nil).flac_files #nil here because there won't be an md5 file for flacs we created
   end
   
 end
@@ -418,6 +415,4 @@ if(flac_file_list.valid?)
 else
   puts "There was a problem with the flacs, perhaps a bad md5?"
 end
-
-#MD5Checker.new("*.md5", "*wav*.md5").valid?
 
