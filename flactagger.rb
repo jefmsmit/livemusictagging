@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 
 # ToDo:
+# delete md5s that aren't for the wavs
 # support automatic source information
 # support automatic song information
 # support user entered input as command line arguments
-# check for shn first, validate md5s, convert to wavs, validate md5s again, convert to flacs
 # support custom file patterns
 
 
@@ -43,55 +43,73 @@ class UserEnteredSongNameFetcher
 end
 
 class MD5Checker
-  
-  def initialize(executor, pattern)
-    @executor = executor
-    @pattern = pattern
+    
+  def initialize(pattern, exclude_pattern)
+    all_files = Dir.glob(pattern)
+    excludes = exclude_pattern ? Dir.glob(exclude_pattern) : []
+    @files = []
+    
+    all_files.each do |file|
+      @files.push(file) unless excludes.member?(file)
+    end
+    
   end
   
   def valid?
-    
-    #all_digest = Digest::MD5.hexdigest(File.read('gd82-09-24d1t01.shn'))
-    
-    md5s = Dir.glob(@pattern)
-    md5s.each do |file|
-      puts("checking #{file}")
-      
-      File.open(file, "r") do |infile|
-        file_to_checksum = {}
-        while(line = infile.gets)
-          parts = line.split(" ")
-          file_to_checksum[parts[1].sub(/\*/, "").chomp] = parts[0]
-        end
-        
-        file_to_checksum.sort{|a,b| a<=>b}.each do |key, value|
-          puts key
-          if(File.exist?(key))
-            all_digest = Digest::MD5.hexdigest(File.read(key))
-            if(all_digest == value)
-              puts("#{file} passes checksum")
-            else
-              puts("#{file} is bad")
-            end            
-          else
-            puts "file not found, this is bad"
-          end
-        end
-        
-      end
-      
-      #status = @executor.execute("md5sum -c #{file}") 
-      #return status unless status
-    end
+    @files.each do |file|
+      status = all_in_file_valid?(file)
+      return status unless status
+    end    
     return true
+  end
+  
+  private
+  
+  def all_in_file_valid?(file)
+    puts "Valdating #{file}"
+    file_to_checksum = build_file_checksum_hash(file)
+    valid = true  
+      
+    file_to_checksum.sort{|a,b| a<=>b}.each do |key, value|
+      status = file_passes_checksum?(key, value)
+      valid = valid && status
+    end
+        
+    valid
+  end
+  
+  def build_file_checksum_hash(md5file)
+    file_to_checksum = {}
+
+    File.open(md5file, "r") do |infile|            
+      while(line = infile.gets)
+        parts = line.split(" ")
+        file_to_checksum[parts[1].sub(/\*/, "").chomp] = parts[0]
+      end
+    end
+    
+    file_to_checksum
+  end
+  
+  def file_passes_checksum?(file, checksum)
+    puts "Checking #{file}"
+    if(File.exist?(file))
+      puts("  #{file} passed")
+      all_digest = Digest::MD5.hexdigest(File.read(file))
+      all_digest == checksum
+    else
+      puts "  #{file} not found"
+      false
+    end
   end
   
 end
 
 class ShnToWavConverter
   
-  def initialize(executor)
+  def initialize(executor, wav_md5_checker)
     @executor = executor
+    @wav_md5_checker = wav_md5_checker
   end
   
   def convert
@@ -102,7 +120,8 @@ class ShnToWavConverter
       status = @executor.execute("shorten -x #{file}") #how do I keep the original shn files?
       return status unless status
     end
-    return true
+    
+    return @wav_md5_checker.valid?
   end
   
 end
@@ -189,7 +208,7 @@ class CurrentDirectoryShnToWaveToFlacFileList
   def valid?    
     if(@md5checker.valid?)
       return ChainedConverter.new(
-        [ShnToWavConverter.new(@executor), WavToFlacConverter.new(@executor), RemoveWavConverter.new(@executor)]
+        [ShnToWavConverter.new(@executor, MD5Checker.new("*wav*.md5", nil)), WavToFlacConverter.new(@executor), RemoveWavConverter.new(@executor)]
       ).convert
     end    
     false
@@ -211,9 +230,9 @@ class FlacFileListFactory
   
   def flac_file_list
     if not Dir.glob("*.flac").empty?
-      return CurrentDirectoryFlacFileList.new(MD5Checker.new(@executor, "*.md5"))
+      return CurrentDirectoryFlacFileList.new(MD5Checker.new("*.md5", "*wav*.md5"))
     elsif not Dir.glob("*.shn").empty?
-      return CurrentDirectoryShnToWaveToFlacFileList.new(MD5Checker.new(@executor, "*.md5"), @executor)
+      return CurrentDirectoryShnToWaveToFlacFileList.new(MD5Checker.new("*.md5", "*wav*.md5"), @executor)
     else
       []
     end    
@@ -374,31 +393,31 @@ class FlacTagger
   
 end
 
-#puts "Enter Date (yyyy/mm/dd): "
-#date = Date.parse(gets.chomp)
+puts "Enter Date (yyyy/mm/dd): "
+date = Date.parse(gets.chomp)
 
-#puts "Enter City, State: "
-#location = gets.chomp
+puts "Enter City, State: "
+location = gets.chomp
 
-#puts "Enter Venue: "
-#venue = gets.chomp
+puts "Enter Venue: "
+venue = gets.chomp
 
-#system_executor = SystemExecutor.new
-#source_info = UserEnteredSourceInfo.new
-#flac_file_list = FlacFileListFactory.new(system_executor).flac_file_list
+system_executor = SystemExecutor.new
+source_info = UserEnteredSourceInfo.new
+flac_file_list = FlacFileListFactory.new(system_executor).flac_file_list
 
-#if(flac_file_list.valid?)
-#  puts "Flac files are valid, proceeding..."
-#  files = flac_file_list.flac_files 
-#  disc_and_track_info = DiscAndTrackInfo.new(date, files)
-#  song_name_fetcher = UserEnteredSongNameFetcher.new
-#  tag_writer = TagWriter.new(system_executor)
+if(flac_file_list.valid?)
+  puts "Flac files are valid, proceeding..."
+  files = flac_file_list.flac_files 
+  disc_and_track_info = DiscAndTrackInfo.new(date, files)
+  song_name_fetcher = UserEnteredSongNameFetcher.new
+  tag_writer = TagWriter.new(system_executor)
 
-#  tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher, tag_writer)
-#  tagger.write_tags("Grateful Dead", date, location, venue)
-#else
-#  puts "There was a problem with the flacs, perhaps a bad md5?"
-#end
+  tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher, tag_writer)
+  tagger.write_tags("Grateful Dead", date, location, venue)
+else
+  puts "There was a problem with the flacs, perhaps a bad md5?"
+end
 
-MD5Checker.new(SystemExecutor.new, "*.md5").valid?
+#MD5Checker.new("*.md5", "*wav*.md5").valid?
 
