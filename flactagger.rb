@@ -9,6 +9,7 @@
 
 
 require 'date'
+require 'digest/md5'
 
 class SystemExecutor
   def execute(call)
@@ -49,9 +50,36 @@ class MD5Checker
   end
   
   def valid?
+    
+    #all_digest = Digest::MD5.hexdigest(File.read('gd82-09-24d1t01.shn'))
+    
     md5s = Dir.glob(@pattern)
     md5s.each do |file|
       puts("checking #{file}")
+      
+      File.open(file, "r") do |infile|
+        file_to_checksum = {}
+        while(line = infile.gets)
+          parts = line.split(" ")
+          file_to_checksum[parts[1].sub(/\*/, "").chomp] = parts[0]
+        end
+        
+        file_to_checksum.sort{|a,b| a<=>b}.each do |key, value|
+          puts key
+          if(File.exist?(key))
+            all_digest = Digest::MD5.hexdigest(File.read(key))
+            if(all_digest == value)
+              puts("#{file} passes checksum")
+            else
+              puts("#{file} is bad")
+            end            
+          else
+            puts "file not found, this is bad"
+          end
+        end
+        
+      end
+      
       #status = @executor.execute("md5sum -c #{file}") 
       #return status unless status
     end
@@ -87,14 +115,14 @@ class WavToFlacConverter
   
   def convert
     #should validate any wav file md5 sums here
-    flacs = Dir.glob("*.wav")
+    wavs = Dir.glob("*.wav")
     
-    flacs.each do |file|
+    wavs.each do |file|
       puts("converting wav file #{file} to flac")
       status = @executor.execute("flac -8 #{file}")
       return status unless status
     end   
-    #need to delete the wav files 
+    
     return true
   end
   
@@ -107,7 +135,12 @@ class RemoveWavConverter
   end
   
   def convert
-    puts("should be deleting the wavs here, but I don't know how")
+    wavs = Dir.glob("*.wav")
+    
+    wavs.each do |file|
+      File.delete(file)
+    end
+
     return true
   end
   
@@ -341,29 +374,31 @@ class FlacTagger
   
 end
 
-puts "Enter Date (yyyy/mm/dd): "
-date = Date.parse(gets.chomp)
+#puts "Enter Date (yyyy/mm/dd): "
+#date = Date.parse(gets.chomp)
 
-puts "Enter City, State: "
-location = gets.chomp
+#puts "Enter City, State: "
+#location = gets.chomp
 
-puts "Enter Venue: "
-venue = gets.chomp
+#puts "Enter Venue: "
+#venue = gets.chomp
 
-system_executor = SystemExecutor.new
-source_info = UserEnteredSourceInfo.new
-flac_file_list = FlacFileListFactory.new(system_executor).flac_file_list
+#system_executor = SystemExecutor.new
+#source_info = UserEnteredSourceInfo.new
+#flac_file_list = FlacFileListFactory.new(system_executor).flac_file_list
 
-if(flac_file_list.valid?)
-  puts "Flac files are valid, proceeding..."
-  files = flac_file_list.flac_files 
-  disc_and_track_info = DiscAndTrackInfo.new(date, files)
-  song_name_fetcher = UserEnteredSongNameFetcher.new
-  tag_writer = TagWriter.new(system_executor)
+#if(flac_file_list.valid?)
+#  puts "Flac files are valid, proceeding..."
+#  files = flac_file_list.flac_files 
+#  disc_and_track_info = DiscAndTrackInfo.new(date, files)
+#  song_name_fetcher = UserEnteredSongNameFetcher.new
+#  tag_writer = TagWriter.new(system_executor)
 
-  tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher, tag_writer)
-  tagger.write_tags("Grateful Dead", date, location, venue)
-else
-  puts "There was a problem with the flacs, perhaps a bad md5?"
-end
+#  tagger = FlacTagger.new(files, source_info, disc_and_track_info, song_name_fetcher, tag_writer)
+#  tagger.write_tags("Grateful Dead", date, location, venue)
+#else
+#  puts "There was a problem with the flacs, perhaps a bad md5?"
+#end
+
+MD5Checker.new(SystemExecutor.new, "*.md5").valid?
 
