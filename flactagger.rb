@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 # ToDo:
-# delete md5s that aren't for the wavs
 # support automatic source information
 # support automatic song information
 # support user entered input as command line arguments
@@ -146,20 +145,22 @@ class WavToFlacCommand
   
 end
 
-class RemoveWavCommand
+class RemoveFilesCommand
   
-  def initialize(executor)
-    @executor = executor
+  def initialize(pattern, exclude_pattern)
+    all_files = Dir.glob(pattern) # duplication here with the md5 checker, how do you do statics in ruby?
+    excludes = exclude_pattern ? Dir.glob(exclude_pattern) : []
+    @files = []
+    
+    all_files.each do |file|
+      @files.push(file) unless excludes.member?(file)
+    end
   end
   
   def execute?
-    wavs = Dir.glob("*.wav")
-    
-    wavs.each do |file|
+    @files.each do |file|
       File.delete(file)
     end
-
-    return true
   end
   
 end
@@ -207,7 +208,7 @@ class CurrentDirectoryShnToWaveToFlacFileList
   def valid?    
     if(@md5checker.valid?)
       return CompoundCommand.new(
-        [ShnToWavCommand.new(@executor, MD5Checker.new("*wav*.md5", nil)), WavToFlacCommand.new(@executor), RemoveWavCommand.new(@executor)]
+        [ShnToWavCommand.new(@executor, MD5Checker.new("*wav*.md5", nil)), WavToFlacCommand.new(@executor), RemoveFilesCommand.new("*.wav", nil), RemoveFilesCommand.new("*.md5", "*wav*.md5")]
       ).execute?
     end    
     false
