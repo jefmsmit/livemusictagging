@@ -1,8 +1,6 @@
 #!/usr/bin/env ruby
 
 # ToDo:
-# support automatic source information
-# support automatic song information
 # support user entered input as command line arguments
 # support custom file patterns
 
