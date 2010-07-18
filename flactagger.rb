@@ -190,7 +190,10 @@ class CurrentDirectoryFlacFileList
   end
   
   def valid?
-    return @md5checker.valid?
+    if(@md5checker.valid?)
+      return RemoveFilesCommand.new("*.md5", "*wav*.md5").execute?
+    end
+    return false
   end
   
 end
