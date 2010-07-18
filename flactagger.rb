@@ -249,17 +249,19 @@ end
 
 class FilePatternRegexBuilder
   
-  def initialize(starting_pattern, date)
+  def initialize(date, starting_pattern)
     @starting_pattern = starting_pattern
     @date = date
   end
   
   def regex    
-    pattern = @starting_pattern.sub("{2_digit_year}", @date.strftime('%g'))
-    pattern = pattern.sub("{2_digit_month}", @date.strftime('%m'))
-    pattern = pattern.sub("{2_digit_day}", @date.strftime('%d'))
-    pattern = pattern.sub("{disc_prefix}", "d")
-    pattern = pattern.sub("{track_prefix}", "t")
+    #pattern = @starting_pattern.sub("{2_digit_year}", @date.strftime('%g'))
+    #pattern = pattern.sub("{2_digit_month}", @date.strftime('%m'))
+    #pattern = pattern.sub("{2_digit_day}", @date.strftime('%d'))
+    #pattern = pattern.sub("{disc_prefix}", "d")
+    #pattern = pattern.sub("{track_prefix}", "t")
+    pattern = @starting_pattern.sub("{d}", "(\\d)")
+    pattern = pattern.sub("{t}", "(\\d+)")
     return pattern
   end
   
@@ -432,13 +434,15 @@ location = gets.chomp
 puts "Enter Venue: "
 venue = gets.chomp
 
-default_pattern = "gd{2_digit_year}-{2_digit_month}-{2_digit_day}{disc_prefix}(\\d){track_prefix}(\\d+).flac"
-pattern = default_pattern
+default_pattern = "gd#{date.strftime('%g')}-#{date.strftime('%m')}-#{date.strftime('%d')}d{d}t{t}.flac"
+puts "File Pattern [#{default_pattern}]:"
+user_pattern = gets.chomp
+pattern = (not user_pattern.empty?) ? user_pattern : default_pattern 
+regex_builder = FilePatternRegexBuilder.new(date, pattern)
 
 system_executor = SystemExecutor.new
 source_info = UserEnteredSourceInfo.new
 flac_file_list = FlacFileListFactory.new(system_executor).flac_file_list
-regex_builder = FilePatternRegexBuilder.new(pattern, date)
 
 if(flac_file_list.valid?)
   puts "Flac files are valid, proceeding..."
