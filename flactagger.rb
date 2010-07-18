@@ -247,18 +247,41 @@ class FlacFileListFactory
   
 end
 
+class FilePatternRegexBuilder
+  
+  def initialize(starting_pattern, date)
+    @starting_pattern = starting_pattern
+    @date = date
+  end
+  
+  def regex    
+    pattern = @starting_pattern.sub("{2_digit_year}", @date.strftime('%g'))
+    pattern = pattern.sub("{2_digit_month}", @date.strftime('%m'))
+    pattern = pattern.sub("{2_digit_day}", @date.strftime('%d'))
+    pattern = pattern.sub("{disc_prefix}", "d")
+    pattern = pattern.sub("{track_prefix}", "t")
+    return pattern
+  end
+  
+end
+
 class DiscAndTrackInfo
   
-  def initialize(date, files)
+  def initialize(regex_builder, files)
     @discs_and_tracks = {}
     @file_to_disc = {}
     @file_to_track = {}     
     
     files.each do |file|
-      regex = "gd#{date.strftime('%g')}-#{date.strftime('%m')}-#{date.strftime('%d')}d(\\d)t(\\d+).flac"
+      regex = regex_builder.regex
       file[Regexp.new(regex)]
+      
       current_disc = $1
+      raise "Could not find the disc number for #{file}" unless current_disc
+      
       current_track = $2.to_i
+      raise "Could not find the track number for #{file}" unless current_track
+      
       @file_to_disc[file] = current_disc
       @file_to_track[file] = current_track
       @discs_and_tracks[current_disc] = current_track
@@ -409,14 +432,18 @@ location = gets.chomp
 puts "Enter Venue: "
 venue = gets.chomp
 
+default_pattern = "gd{2_digit_year}-{2_digit_month}-{2_digit_day}{disc_prefix}(\\d){track_prefix}(\\d+).flac"
+pattern = default_pattern
+
 system_executor = SystemExecutor.new
 source_info = UserEnteredSourceInfo.new
 flac_file_list = FlacFileListFactory.new(system_executor).flac_file_list
+regex_builder = FilePatternRegexBuilder.new(pattern, date)
 
 if(flac_file_list.valid?)
   puts "Flac files are valid, proceeding..."
   files = flac_file_list.flac_files 
-  disc_and_track_info = DiscAndTrackInfo.new(date, files)
+  disc_and_track_info = DiscAndTrackInfo.new(regex_builder, files)
   song_name_fetcher = UserEnteredSongNameFetcher.new
   tag_writer = TagWriter.new(system_executor)
 
