@@ -1,0 +1,9 @@
+*.gem
+.bundle
+Gemfile.lock
+pkg/*
+livemusictagging.ipr
+livemusictagging.iml
+livemusictagging.iws
+.idea
+.rakeTasks
