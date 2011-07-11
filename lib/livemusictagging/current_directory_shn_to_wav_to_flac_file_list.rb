@@ -19,7 +19,8 @@ class CurrentDirectoryShnToWaveToFlacFileList
   end
 
   def flac_files
-    CurrentDirectoryFlacFileList.new(nil).flac_files #nil here because there won't be an md5 file for flacs we created
+    command = RemoveFilesCommand.new("*.md5", "*wav*.md5")
+    CurrentDirectoryFlacFileList.new(nil, FlacFileFetcher.new, command).flac_files #nil here because there won't be an md5 file for flacs we created
   end
 
 end
