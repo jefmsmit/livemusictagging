@@ -8,33 +8,28 @@ describe "A Compound Command " do
   end
 
   it "should return true if all commands return true" do
-    compound_command = CompoundCommand.new([MockCommand.new(true), MockCommand.new(true)])
+    compound_command = CompoundCommand.new([mock_command(true), mock_command(true)])
     compound_command.execute?.should == true
   end
 
   it "should return false if all commands are false" do
-    compound_command = CompoundCommand.new([MockCommand.new(false), MockCommand.new(false)])
+    compound_command = CompoundCommand.new([mock_command(false), mock_command(false)])
     compound_command.execute?.should == false
   end
 
   it "should return false if any commands are false" do
-    compound_command = CompoundCommand.new([MockCommand.new(false), MockCommand.new(true)])
+    compound_command = CompoundCommand.new([mock_command(false), mock_command(true)])
     compound_command.execute?.should == false
 
-    compound_command = CompoundCommand.new([MockCommand.new(true), MockCommand.new(false)])
+    compound_command = CompoundCommand.new([mock_command(true), mock_command(false)])
     compound_command.execute?.should == false
   end
 
 end
 
-class MockCommand
 
-  def initialize(return_val)
-    @return_val = return_val
-  end
-
-  def execute?
-    @return_val
-  end
-
+def mock_command(return_val)
+  command = mock()
+  command.stub!(:execute?).and_return(return_val)
+  command
 end

@@ -2,49 +2,33 @@ require "spec_helper"
 
 describe "A Current Directory Flac File List" do
 
+  before :each do
+    @checker = mock(MD5Checker)
+    @fetcher = mock(FlacFileFetcher)
+    @fetcher.stub!(:fetch).and_return([])
+  end
+
   it "should return false if md5checker fails" do
-    file_list = CurrentDirectoryFlacFileList.new(MockMD5Checker.new(false), MockFetcher.new, nil)
+    @checker.stub!(:valid?).and_return(false)
+    file_list = CurrentDirectoryFlacFileList.new(@checker, @fetcher, nil)
     file_list.valid?.should == false
   end
 
   it "should defer to post md5 valid command if md5s are valid" do
-    file_list = CurrentDirectoryFlacFileList.new(MockMD5Checker.new(true), MockFetcher.new, MockPostMD5Command.new(false))
-    file_list.valid?.should == false
-
-    file_list = CurrentDirectoryFlacFileList.new(MockMD5Checker.new(true), MockFetcher.new, MockPostMD5Command.new(true))
-    file_list.valid?.should == true
+    @checker.stub!(:valid?).and_return(true)
+    validate_flac_file_list_with_post_md5_command(false)
+    validate_flac_file_list_with_post_md5_command(true)
   end
 
 end
 
-class MockMD5Checker
-
-  def initialize(valid)
-    @valid = valid
-  end
-
-  def valid?
-    @valid
-  end
-
+def mock_post_md5_command(return_val)
+  post_md5_command = mock()
+  post_md5_command.stub!(:execute?).and_return(return_val)
+  post_md5_command
 end
 
-class MockFetcher
-
-  def fetch
-    []
-  end
-
-end
-
-class MockPostMD5Command
-
-  def initialize(successful)
-    @successful = successful
-  end
-
-  def execute?
-    @successful
-  end
-
+def validate_flac_file_list_with_post_md5_command(is_valid)
+  file_list = CurrentDirectoryFlacFileList.new(@checker, @fetcher, mock_post_md5_command(is_valid))
+  file_list.valid?.should == is_valid
 end
