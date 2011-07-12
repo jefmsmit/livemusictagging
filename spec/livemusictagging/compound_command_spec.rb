@@ -34,7 +34,7 @@ class MockCommand
   end
 
   def execute?
-    return_val
+    @return_val
   end
 
 end

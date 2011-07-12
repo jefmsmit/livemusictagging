@@ -24,7 +24,7 @@ class MockMD5Checker
   end
 
   def valid?
-    valid
+    @valid
   end
 
 end
