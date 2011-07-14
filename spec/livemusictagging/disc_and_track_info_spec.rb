@@ -4,9 +4,7 @@ require 'date'
 describe "A DiscAndTrackInfo" do
 
   before(:all) do
-    date = Date.parse("1977/05/08")
-    pattern = "gd77-05-08d{d}t{t}.flac"
-    regex_builder = FilePatternRegexBuilder.new(date, pattern)
+    regex_builder = FilePatternRegexBuilder.new(test_date, test_pattern)
 
     @files = [file_name("1", "01"), file_name("1", "02"), file_name("2", "01")]
     @d_and_t_info = DiscAndTrackInfo.new(regex_builder, @files)
