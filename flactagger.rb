@@ -31,7 +31,7 @@ regex_builder = FilePatternRegexBuilder.new(date, pattern)
 
 system_executor = SystemExecutor.new
 source_info = UserEnteredSourceInfo.new
-flac_file_list = FlacFileListFactory.new(system_executor).flac_file_list
+flac_file_list = FlacFileListFactory.new(system_executor).flac_or_shn_file_list
 
 if(flac_file_list.valid?)
   puts "Flac files are valid, proceeding..."
