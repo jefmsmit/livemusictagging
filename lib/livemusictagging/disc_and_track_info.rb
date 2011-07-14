@@ -9,7 +9,7 @@ class DiscAndTrackInfo
       regex = regex_builder.regex
       file[Regexp.new(regex)]
 
-      current_disc = $1
+      current_disc = $1.to_i
       raise "Could not find the disc number for #{file}" unless current_disc
 
       current_track = $2.to_i
