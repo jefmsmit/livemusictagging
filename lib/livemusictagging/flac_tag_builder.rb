@@ -1,12 +1,10 @@
 class FlacTagBuilder
   SET_TAG_PREFIX = "--set-tag="
 
-  def initialize
-    @args = ""
-  end
+  attr_reader :arguments
 
-  def arguments
-    @args
+  def initialize
+    @arguments = ""
   end
 
   def add_description(desc)
@@ -62,7 +60,7 @@ class FlacTagBuilder
   private
 
   def add_argument(tag_name, value)
-    @args += " #{SET_TAG_PREFIX}#{tag_name}=\"#{value}\""
+    @arguments += " #{SET_TAG_PREFIX}#{tag_name}=\"#{value}\""
   end
 
 end
