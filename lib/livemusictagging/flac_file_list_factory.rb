@@ -11,7 +11,7 @@ class FlacFileListFactory
     if not Dir.glob("*.flac").empty?
       CurrentDirectoryFlacFileList.new(MD5Checker.new("*.md5", "*wav*.md5"), fetcher, command)
     elsif not Dir.glob("*.shn").empty?
-      CurrentDirectoryShnToWaveToFlacFileList.new(MD5Checker.new("*.md5", "*wav*.md5"), @executor, CommandFactory.new)
+      CurrentDirectoryShnToWaveToFlacFileList.new(MD5Checker.new("*.md5", "*wav*.md5"), @executor, CommandFactory.new, self)
     else
       []
     end
