@@ -10,7 +10,7 @@ class CurrentDirectoryShnToWaveToFlacFileList
 
   def valid?
     if(@md5checker.valid?)
-      return @command_factory.shn_to_wav_to_flac_command(@executor, @md5checker).execute?
+      return @command_factory.shn_to_wav_to_flac_command(@executor, MD5Checker.new("*wav*.md5", nil)).execute?
     end
     false
   end

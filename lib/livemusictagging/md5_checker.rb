@@ -24,7 +24,7 @@ class MD5Checker
   private
 
   def all_in_file_valid?(file)
-    puts "Valdating #{file}"
+    puts "Validating #{file}"
     file_to_checksum = build_file_checksum_hash(file)
     valid = true
 
@@ -39,9 +39,10 @@ class MD5Checker
   def build_file_checksum_hash(md5file)
     file_to_checksum = {}
 
+    #todo, this breaks if there are blank lines
     File.open(md5file, "r") do |infile|
       while(line = infile.gets)
-        parts = line.split(" ")
+        parts = line.split(/\s/)
         file_to_checksum[parts[1].sub(/\*/, "").chomp] = parts[0]
       end
     end
