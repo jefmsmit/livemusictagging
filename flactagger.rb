@@ -3,16 +3,10 @@
 # ToDo:
 # re-create the ffp
 # support user entered input as command line arguments
-# support custom file patterns
-
-$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), 'lib', 'livemusictagging'))
-
-Dir.glob(File.join(File.dirname(__FILE__), 'lib', 'livemusictagging', '*.rb')).each do |file|
-  require file
-end
-
 
 require 'date'
+require 'rubygems'
+require 'livemusictagging'
 
 puts "Enter Date (yyyy/mm/dd): "
 date = Date.parse(gets.chomp)
