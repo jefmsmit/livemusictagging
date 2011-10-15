@@ -41,8 +41,9 @@ class MD5Checker
 
     #todo, this breaks if there are blank lines
     File.open(md5file, "r") do |infile|
+      puts "opened file"
       while(line = infile.gets)
-        parts = line.split(/\s/)
+        parts = line.split(/\s+/)
         file_to_checksum[parts[1].sub(/\*/, "").chomp] = parts[0]
       end
     end
